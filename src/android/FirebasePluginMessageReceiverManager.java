@@ -9,6 +9,8 @@ import android.util.Log;
 
 import me.leolin.shortcutbadger.ShortcutBadger;
 
+import android.content.Context;
+
 public class FirebasePluginMessageReceiverManager {
 
     private static List<FirebasePluginMessageReceiver> receivers = new ArrayList<FirebasePluginMessageReceiver>();
