@@ -1,6 +1,7 @@
 var fs = require("fs");
 var path = require("path");
 var utilities = require("../lib/utilities");
+var xcode = require("xcode");
 
 /**
  * This is used as the display text for the build phase block in XCode as well as the
@@ -30,7 +31,6 @@ module.exports = {
      * (dSYMs) so that Crashlytics can display stack trace information in it's web console.
      */
   addShellScriptBuildPhase: function (context, xcodeProjectPath) {
-    var xcode = context.requireCordovaModule("xcode");
 
     // Read and parse the XCode project (.pxbproj) from disk.
     // File format information: http://www.monobjc.net/xcode-project-file-format.html
@@ -38,7 +38,7 @@ module.exports = {
     xcodeProject.parseSync();
 
     // Build the body of the script to be executed during the build phase.
-    var script = '"' + '\\"${SRCROOT}\\"' + "/\\\"" + utilities.getAppName(context) + "\\\"/Plugins/" + utilities.getPluginId() + "/Fabric.framework/run" + '"';
+    var script = '"' + '\\"${PODS_ROOT}/Fabric/run\\"' + '"';
 
     // Generate a unique ID for our new build phase.
     var id = xcodeProject.generateUuid();
@@ -47,7 +47,7 @@ module.exports = {
           isa: "PBXShellScriptBuildPhase",
           buildActionMask: 2147483647,
           files: [],
-          inputPaths: [],
+          inputPaths: ['"' + '$(BUILT_PRODUCTS_DIR)/$(INFOPLIST_PATH)' + '"'],
           name: comment,
           outputPaths: [],
           runOnlyForDeploymentPostprocessing: 0,
@@ -85,8 +85,6 @@ module.exports = {
      */
   removeShellScriptBuildPhase: function (context, xcodeProjectPath) {
 
-    var xcode = context.requireCordovaModule("xcode");
-
     // Read and parse the XCode project (.pxbproj) from disk.
     // File format information: http://www.monobjc.net/xcode-project-file-format.html
     var xcodeProject = xcode.project(xcodeProjectPath);
@@ -96,6 +94,7 @@ module.exports = {
 
     var buildPhases = xcodeProject.hash.project.objects.PBXShellScriptBuildPhase;
 
+    var commentTest = comment.replace(/"/g, '');
     for (var buildPhaseId in buildPhases) {
 
       var buildPhase = xcodeProject.hash.project.objects.PBXShellScriptBuildPhase[buildPhaseId];
@@ -105,12 +104,12 @@ module.exports = {
         // Dealing with a build phase block.
 
         // If the name of this block matches ours, then we want to delete it.
-        shouldDelete = buildPhase.name && buildPhase.name.indexOf(comment) !== -1;
+        shouldDelete = buildPhase.name && buildPhase.name.indexOf(commentTest) !== -1;
       } else {
         // Dealing with a comment block.
 
         // If this is a comment block that matches ours, then we want to delete it.
-        shouldDelete = buildPhaseId === comment;
+        shouldDelete = buildPhase === commentTest;
       }
 
       if (shouldDelete) {
@@ -133,7 +132,7 @@ module.exports = {
 
       // We remove the reference to the block by filtering out the the ones that match.
       nativeTarget.buildPhases = nativeTarget.buildPhases.filter(function (buildPhase) {
-        return buildPhase.comment !== comment;
+        return buildPhase.comment !== commentTest;
       });
     }
 
